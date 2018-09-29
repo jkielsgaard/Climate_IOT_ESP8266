@@ -17,9 +17,9 @@ DHT dht(DHTPIN, DHTTYPE);
 // Wifi credentials, Cloud host url, API key to the cloud API and unitID
 char ssid[] = "<SSID>";
 char pass[] = "<PASSWORD>";
-String hostURL = "<HOSTURL>";
-String Apikey = "<APIKEY>";
-String unitID = "<UNITID>";
+String datadbURL= = "<HOSTURL>";
+String apikey = "<APIKEY>";
+String unitid = "<UNITID>";
 
 
 // WiFiUDP and EasyNTPC is to collect the unix timestamp
@@ -69,29 +69,31 @@ void loop(){
   if(WiFi.status() == WL_CONNECTED) { post(); }
   else { Serial.println("Lost connection... ☠"); }
 
-  delay(10000); 
+  delay(300000);
 }
 
 
 // The HTTP post function to send the climatedata to the cloud
 void post()
 {
-  HTTPClient http; 
-  http.begin(hostURL, "2D:A5:86:8A:33:0B:81:91:EB:58:55:D7:BD:C6:3D:1B:EB:B3:92:B3");
-  http.addHeader("x-api-key", Apikey);
-  http.addHeader("Content-Type", "application/json");
-  int httpCode = http.POST(ClimateDATA());
-  if(httpCode > 0) {
-    if(httpCode == HTTP_CODE_OK) {
-      Serial.println("✉+☁=✔");
-    } else {
-    Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
-    Serial.println(httpCode);
-    }
-  } else {
-    Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+  int attempt = 0;
+
+  while (attempt < 3)
+  {
+    HTTPClient http; 
+    http.begin(datadbURL, "2D:A5:86:8A:33:0B:81:91:EB:58:55:D7:BD:C6:3D:1B:EB:B3:92:B3");
+    http.addHeader("x-api-key", apikey);
+    http.addHeader("Content-Type", "application/json");
+    int httpCode = http.POST(ClimateDATA());
+    if(httpCode > 0) {
+      if(httpCode == HTTP_CODE_OK) {
+        Serial.println("✉+☁=✔");
+        attempt = 3;
+      } else { Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str()); delay(2000); }
+    } else { Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str()); delay(2000); }
+    attempt++;
+    http.end();
   }
-  http.end();
 }
 
 
@@ -107,9 +109,9 @@ String ClimateDATA()
   
   JSONencoder["TableName"] = "climatedata";
   JsonObject& Item = JSONencoder.createNestedObject("Item");
-  Item["id"] = unitID + "_" + datetime;
+  Item["id"] = unitid + "_" + datetime;
   Item["datestamp"] = datetime;
-  Item["unit"] = unitID;
+  Item["unit"] = unitid;
   JsonObject& climatedata = Item.createNestedObject("climatedata");
   climatedata["humidity"] = h = dht.readHumidity();
   climatedata["temperature"] = t = dht.readTemperature();
